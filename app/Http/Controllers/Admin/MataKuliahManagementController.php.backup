@@ -1,0 +1,517 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\MataKuliah;
+use App\Models\MataKuliahPengampu;
+use App\Models\Prodi;
+use App\Models\User;
+use App\Models\Dosen;
+use Illuminate\Http\Request;
+use App\Helpers\LogHelper;
+use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\MataKuliahExport;
+use App\Imports\MataKuliahImport;
+
+class MataKuliahManagementController extends Controller
+{
+    /**
+     * Display a listing of mata kuliah
+     */
+    public function index(Request $request)
+    {
+        $query = MataKuliah::with(['prodi', 'pengampu.dosen']);
+
+        // Search
+        if ($request->filled('search')) {
+            $query->search($request->search);
+        }
+
+        // Filter by prodi
+        if ($request->filled('prodi_id')) {
+            $query->prodi($request->prodi_id);
+        }
+
+        // Filter by kurikulum
+        if ($request->filled('kurikulum')) {
+            $query->kurikulum($request->kurikulum);
+        }
+
+        // Filter by semester
+        if ($request->filled('semester')) {
+            $query->where('semester_rekomendasi', $request->semester);
+        }
+
+        // Filter by status
+        if ($request->filled('status')) {
+            if ($request->status == '1') {
+                $query->aktif();
+            } elseif ($request->status == '0') {
+                $query->nonaktif();
+            }
+        }
+
+        // Sort
+        $sortBy = $request->input('sort_by', 'kode_mk');
+        $sortOrder = $request->input('sort_order', 'asc');
+        $query->orderBy($sortBy, $sortOrder);
+
+        // Pagination
+        $perPage = $request->input('per_page', 30);
+        $mataKuliahList = $query->paginate($perPage)->withQueryString();
+
+        // Get data for filters
+        $prodiList = Prodi::aktif()->get();
+        $kurikulumList = MataKuliah::select('kurikulum')->distinct()->orderBy('kurikulum', 'desc')->pluck('kurikulum');
+
+        return view('admin.mata-kuliah.index', compact('mataKuliahList', 'prodiList', 'kurikulumList'));
+    }
+
+    /**
+     * Show the form for creating a new mata kuliah
+     */
+    public function create()
+    {
+        $prodiList = Prodi::aktif()->get();
+        return view('admin.mata-kuliah.create', compact('prodiList'));
+    }
+
+    /**
+     * Store a newly created mata kuliah
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'id_prodi' => 'required|exists:program_studi,id',
+            'kurikulum' => 'required|regex:/^[A-Za-z0-9-_]{2,20}$/',
+            'kode_mk' => 'required|regex:/^[A-Za-z0-9._-]{2,20}$/',
+            'nama_mk' => 'required|min:3|max:150',
+            'sks' => 'required|integer|min:1|max:6',
+            // 'jenis' removed from CRUD
+            'semester' => 'required|integer|min:1|max:14',
+            'deskripsi' => 'nullable|string',
+            'prasyarat' => 'nullable|json',
+            'kode_eksternal' => 'nullable|string|max:32',
+        ]);
+
+        // Check unique constraint
+        $exists = MataKuliah::where('id_prodi', $request->id_prodi)
+            ->where('kurikulum', $request->kurikulum)
+            ->where('kode_mk', $request->kode_mk)
+            ->exists();
+
+        if ($exists) {
+            return redirect()->back()->withInput()->with('error', 'Kode mata kuliah sudah ada untuk prodi dan kurikulum ini.');
+        }
+
+        // Create mata kuliah with status automatically set to active
+        $data = $request->all();
+        $data['status'] = 1; // Auto-set status to active
+        $data['kode_mk'] = strtoupper($data['kode_mk']); // Convert to uppercase
+        
+        $mataKuliah = MataKuliah::create($data);
+
+        LogHelper::create('mata_kuliah', "Menambahkan mata kuliah: {$mataKuliah->nama_mk} ({$mataKuliah->kode_mk})");
+
+        return redirect()->route('mata-kuliah.index')->with('success', 'Mata Kuliah berhasil ditambahkan.');
+    }
+
+    /**
+     * Display the specified mata kuliah
+     */
+    public function show(string $id)
+    {
+        $mataKuliah = MataKuliah::with(['prodi', 'pengampu.dosen', 'kelas', 'jadwalKuliah.dosen', 'jadwalKuliah.ruangan'])
+            ->withCount(['pengampu', 'kelas'])
+            ->findOrFail($id);
+
+        // Get statistik
+        $statistik = [
+            'total_kelas' => $mataKuliah->kelas()->count(),
+            'total_kelas_aktif' => $mataKuliah->kelas()->where('status', 1)->count(),
+            'total_pengampu' => $mataKuliah->pengampu()->count(),
+            'total_mahasiswa' => $mataKuliah->kelas()->withCount('membersAktif')->get()->sum('members_aktif_count'),
+            'total_jadwal' => $mataKuliah->jadwalKuliah()->count(),
+            'total_jadwal_aktif' => $mataKuliah->jadwalKuliah()->where('status', 'aktif')->count(),
+        ];
+
+        // Get jadwal aktif
+        $jadwalAktif = $mataKuliah->jadwalKuliah()
+            ->where('status', 'aktif')
+            ->with(['dosen', 'ruangan', 'kelas'])
+            ->orderBy('hari')
+            ->orderBy('jam_mulai')
+            ->paginate(30);
+
+        // Get dosen yang belum jadi pengampu
+        $existingDosenIds = MataKuliahPengampu::where('id_mk', $id)->pluck('dosen_id');
+        $availableDosen = User::where('role', 'dosen')
+            ->where('status', 'aktif')
+            ->whereNotIn('id', $existingDosenIds)
+            ->get();
+
+        // Get logs
+        $logs = \App\Models\Log::where('module', 'mata_kuliah')
+            ->where(function($q) use ($mataKuliah) {
+                $q->where('description', 'like', "%{$mataKuliah->kode_mk}%")
+                  ->orWhere('description', 'like', "%{$mataKuliah->nama_mk}%");
+            })
+            ->with('user')
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get();
+
+        return view('admin.mata-kuliah.show', compact('mataKuliah', 'statistik', 'jadwalAktif', 'logs', 'availableDosen'));
+    }
+
+    /**
+     * Show the form for editing mata kuliah
+     */
+    public function edit(string $id)
+    {
+        $mataKuliah = MataKuliah::findOrFail($id);
+        $prodiList = Prodi::aktif()->get();
+        
+        return view('admin.mata-kuliah.edit', compact('mataKuliah', 'prodiList'));
+    }
+
+    /**
+     * Update the specified mata kuliah
+     */
+    public function update(Request $request, string $id)
+    {
+        $mataKuliah = MataKuliah::findOrFail($id);
+
+        $request->validate([
+            'id_prodi' => 'required|exists:program_studi,id',
+            'kurikulum' => 'required|regex:/^[A-Za-z0-9-_]{2,20}$/',
+            'kode_mk' => 'required|regex:/^[A-Za-z0-9._-]{2,20}$/',
+            'nama_mk' => 'required|min:3|max:150',
+            'sks' => 'required|integer|min:1|max:6',
+            // 'jenis' removed from CRUD
+            'semester' => 'required|integer|min:1|max:14',
+            'deskripsi' => 'nullable|string',
+            'prasyarat' => 'nullable|json',
+            'kode_eksternal' => 'nullable|string|max:32',
+        ]);
+
+        // Check unique constraint (exclude current)
+        $exists = MataKuliah::where('id_prodi', $request->id_prodi)
+            ->where('kurikulum', $request->kurikulum)
+            ->where('kode_mk', strtoupper($request->kode_mk))
+            ->where('id', '!=', $id)
+            ->exists();
+
+        if ($exists) {
+            return redirect()->back()->withInput()->with('error', 'Kode mata kuliah sudah ada untuk prodi dan kurikulum ini.');
+        }
+
+        $data = $request->all();
+        $data['kode_mk'] = strtoupper($data['kode_mk']); // Convert to uppercase
+        
+        // Remove status from data to prevent status change through edit form
+        unset($data['status']);
+        
+        $mataKuliah->update($data);
+
+        LogHelper::update('mata_kuliah', "Mengupdate mata kuliah: {$mataKuliah->nama_mk} ({$mataKuliah->kode_mk})");
+
+        return redirect()->route('mata-kuliah.index')->with('success', 'Mata Kuliah berhasil diupdate.');
+    }
+
+    /**
+     * Remove the specified mata kuliah (soft delete)
+     */
+    public function destroy(string $id)
+    {
+        $mataKuliah = MataKuliah::findOrFail($id);
+        
+        // Cek apakah ada kelas aktif
+        if ($mataKuliah->kelas()->where('status', 1)->count() > 0) {
+            return redirect()->back()->with('error', 'Mata Kuliah tidak dapat dihapus karena masih memiliki kelas aktif. Nonaktifkan terlebih dahulu.');
+        }
+
+        // Cek apakah ada jadwal aktif
+        if ($mataKuliah->jadwalKuliah()->where('status', 'aktif')->count() > 0) {
+            return redirect()->back()->with('error', 'Mata Kuliah tidak dapat dihapus karena masih memiliki jadwal aktif.');
+        }
+
+        $namaMK = $mataKuliah->nama_mk;
+        $mataKuliah->delete(); // Soft delete
+
+        LogHelper::delete('mata_kuliah', "Menghapus mata kuliah: {$namaMK} ({$mataKuliah->kode_mk})");
+
+        return redirect()->route('mata-kuliah.index')->with('success', 'Mata Kuliah berhasil dihapus.');
+    }
+
+    /**
+     * Duplicate mata kuliah (for new curriculum)
+     */
+    public function duplicate(string $id)
+    {
+        $mataKuliah = MataKuliah::findOrFail($id);
+        $prodiList = Prodi::aktif()->get();
+        
+        return view('admin.mata-kuliah.duplicate', compact('mataKuliah', 'prodiList'));
+    }
+
+    /**
+     * Store duplicated mata kuliah
+     */
+    public function storeDuplicate(Request $request, string $id)
+    {
+        $originalMK = MataKuliah::findOrFail($id);
+
+        $request->validate([
+            'id_prodi' => 'required|exists:program_studi,id',
+            'kurikulum' => 'required|regex:/^[A-Za-z0-9-_]{2,20}$/',
+            'kode_mk' => 'required|regex:/^[A-Za-z0-9._-]{2,20}$/',
+            'nama_mk' => 'required|min:3|max:150',
+            'sks' => 'required|integer|min:1|max:6',
+            'semester_rekomendasi' => 'nullable|integer|min:1|max:14',
+            'status' => 'required|boolean',
+        ]);
+
+        // Check unique constraint
+        $exists = MataKuliah::where('id_prodi', $request->id_prodi)
+            ->where('kurikulum', $request->kurikulum)
+            ->where('kode_mk', $request->kode_mk)
+            ->exists();
+
+        if ($exists) {
+            return redirect()->back()->withInput()->with('error', 'Kode mata kuliah sudah ada untuk prodi dan kurikulum ini.');
+        }
+
+        // Create duplicate
+        $newMK = MataKuliah::create([
+            'id_prodi' => $request->id_prodi,
+            'kurikulum' => $request->kurikulum,
+            'kode_mk' => $request->kode_mk,
+            'nama_mk' => $request->nama_mk,
+            'sks' => $request->sks,
+            'semester_rekomendasi' => $request->semester_rekomendasi,
+            'deskripsi' => $originalMK->deskripsi,
+            'prasyarat' => $originalMK->prasyarat,
+            'status' => $request->status,
+            'kode_eksternal' => $originalMK->kode_eksternal,
+        ]);
+
+        LogHelper::create('mata_kuliah', "Menduplikasi mata kuliah: {$originalMK->nama_mk} → {$newMK->nama_mk} (kurikulum {$newMK->kurikulum})");
+
+        return redirect()->route('mata-kuliah.show', $newMK->id)->with('success', 'Mata Kuliah berhasil diduplikasi.');
+    }
+
+    /**
+     * Toggle status (aktif/nonaktif)
+     */
+    public function toggleStatus(string $id)
+    {
+        $mataKuliah = MataKuliah::findOrFail($id);
+        $mataKuliah->status = !$mataKuliah->status;
+        $mataKuliah->save();
+
+        $statusText = $mataKuliah->status ? 'diaktifkan' : 'dinonaktifkan';
+        LogHelper::update('mata_kuliah', "Mata kuliah {$mataKuliah->nama_mk} {$statusText}");
+
+        return redirect()->back()->with('success', "Mata Kuliah berhasil {$statusText}.");
+    }
+
+    /**
+     * Add pengampu to mata kuliah
+     */
+    public function addPengampu(Request $request, string $id)
+    {
+        $mataKuliah = MataKuliah::findOrFail($id);
+        
+        $request->validate([
+            'id_dosen' => 'required|exists:users,id'
+        ]);
+
+        $dosen = User::findOrFail($request->id_dosen);
+        
+        // Check if already pengampu
+        $exists = MataKuliahPengampu::where('id_mk', $id)
+            ->where('dosen_id', $dosen->id)
+            ->exists();
+            
+        if ($exists) {
+            return redirect()->back()->with('error', 'Dosen sudah menjadi pengampu mata kuliah ini.');
+        }
+
+        // Add pengampu
+        MataKuliahPengampu::create([
+            'id_mk' => $id,
+            'dosen_id' => $dosen->id,
+            'peran' => 'Pengampu Utama',
+            'bobot_persen' => null
+        ]);
+
+        LogHelper::create('mata_kuliah', "Menambahkan pengampu: {$dosen->name} pada mata kuliah {$mataKuliah->nama_mk}");
+
+        return redirect()->back()->with('success', 'Dosen pengampu berhasil ditambahkan.');
+    }
+
+    /**
+     * Remove pengampu from mata kuliah
+     */
+    public function removePengampu(string $id, string $pengampuId)
+    {
+        $mataKuliah = MataKuliah::findOrFail($id);
+        $pengampu = MataKuliahPengampu::findOrFail($pengampuId);
+        
+        // Delete pengampu
+        $pengampu->delete();
+
+        LogHelper::delete('mata_kuliah', "Menghapus pengampu: {$pengampu->dosen->name} dari mata kuliah {$mataKuliah->nama_mk}");
+
+        return redirect()->back()->with('success', 'Dosen pengampu berhasil dihapus.');
+    }
+
+    /**
+     * Bulk actions
+     */
+    public function bulkAction(Request $request)
+    {
+        $request->validate([
+            'action' => 'required|in:activate,deactivate,export',
+            'selected_ids' => 'required|array|min:1',
+            'selected_ids.*' => 'exists:mata_kuliah,id',
+        ]);
+
+        $ids = $request->selected_ids;
+
+        switch ($request->action) {
+            case 'activate':
+                MataKuliah::whereIn('id', $ids)->update(['status' => 1]);
+                LogHelper::update('mata_kuliah', "Bulk activate " . count($ids) . " mata kuliah");
+                return redirect()->back()->with('success', count($ids) . ' Mata Kuliah berhasil diaktifkan.');
+
+            case 'deactivate':
+                MataKuliah::whereIn('id', $ids)->update(['status' => 0]);
+                LogHelper::update('mata_kuliah', "Bulk deactivate " . count($ids) . " mata kuliah");
+                return redirect()->back()->with('success', count($ids) . ' Mata Kuliah berhasil dinonaktifkan.');
+
+            case 'export':
+                $mataKuliahList = MataKuliah::whereIn('id', $ids)->get();
+                LogHelper::create('mata_kuliah', "Export " . count($ids) . " mata kuliah (selected)");
+                return Excel::download(new MataKuliahExport($mataKuliahList), 'mata_kuliah_selected_' . date('YmdHis') . '.xlsx');
+        }
+    }
+
+    /**
+     * Import from CSV
+     */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:csv,txt|max:2048',
+        ]);
+
+        try {
+            Excel::import(new MataKuliahImport, $request->file('file'));
+
+            LogHelper::create('mata_kuliah', "Import mata kuliah dari CSV");
+
+            return redirect()->back()->with('success', 'Mata Kuliah berhasil diimport.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal import: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Export to CSV/XLSX
+     */
+    public function export(Request $request)
+    {
+        $format = $request->input('format', 'xlsx');
+        $query = MataKuliah::with(['prodi', 'pengampu']);
+
+        // Apply same filters as index
+        if ($request->filled('search')) {
+            $query->search($request->search);
+        }
+        if ($request->filled('prodi_id')) {
+            $query->prodi($request->prodi_id);
+        }
+        if ($request->filled('kurikulum')) {
+            $query->kurikulum($request->kurikulum);
+        }
+        // (jenis removed)
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $mataKuliahList = $query->get();
+
+        LogHelper::create('mata_kuliah', "Export " . $mataKuliahList->count() . " mata kuliah ke {$format}");
+
+        $filename = 'mata_kuliah_' . date('YmdHis') . '.' . $format;
+        return Excel::download(new MataKuliahExport($mataKuliahList), $filename);
+    }
+
+    /**
+     * Download template import
+     */
+    public function downloadTemplate()
+    {
+        $headers = [
+            'id_prodi',
+            'kurikulum',
+            'kode_mk',
+            'nama_mk',
+            'sks',
+            'semester_rekomendasi',
+            'status'
+        ];
+
+        $filename = 'template_import_mata_kuliah.csv';
+        $handle = fopen('php://output', 'w');
+        ob_start();
+        fputcsv($handle, $headers);
+        fputcsv($handle, ['1', '2024', 'IF2101', 'Struktur Data', '3', '3', '1']);
+        fputcsv($handle, ['1', '2024', 'IF2102', 'Basis Data', '3', '4', '1']);
+        fclose($handle);
+        $content = ob_get_clean();
+
+        LogHelper::create('mata_kuliah', "Download template import mata kuliah");
+
+        return response($content)
+            ->header('Content-Type', 'text/csv')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+    }
+
+    // ==================== PENGAMPU ====================
+
+    /**
+     * Bulk actions
+     */
+    public function bulkAction(Request $request)
+    {
+        $request->validate([
+            'action' => 'required|in:activate,deactivate,export',
+            'selected_ids' => 'required|array|min:1',
+            'selected_ids.*' => 'exists:mata_kuliah,id',
+        ]);
+
+        $ids = $request->selected_ids;
+
+        switch ($request->action) {
+            case 'activate':
+                MataKuliah::whereIn('id', $ids)->update(['status' => 1]);
+                LogHelper::update('mata_kuliah', "Bulk activate " . count($ids) . " mata kuliah");
+                return redirect()->back()->with('success', count($ids) . ' Mata Kuliah berhasil diaktifkan.');
+
+            case 'deactivate':
+                MataKuliah::whereIn('id', $ids)->update(['status' => 0]);
+                LogHelper::update('mata_kuliah', "Bulk deactivate " . count($ids) . " mata kuliah");
+                return redirect()->back()->with('success', count($ids) . ' Mata Kuliah berhasil dinonaktifkan.');
+
+            case 'export':
+                $mataKuliahList = MataKuliah::whereIn('id', $ids)->get();
+                LogHelper::create('mata_kuliah', "Export " . count($ids) . " mata kuliah (selected)");
+                return Excel::download(new MataKuliahExport($mataKuliahList), 'mata_kuliah_selected_' . date('YmdHis') . '.xlsx');
+        }
+    }
+}
