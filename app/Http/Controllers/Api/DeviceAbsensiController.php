@@ -100,7 +100,7 @@ class DeviceAbsensiController extends Controller
 
             // 3. Cek apakah sudah absen
             $existingAbsensi = Absensi::where('sesi_absensi_id', $sesiAbsensi->id)
-                ->where('mahasiswa_id', $mahasiswaData['mahasiswa_id'])
+                ->where('id_mahasiswa', $mahasiswaData['mahasiswa_id'])
                 ->first();
 
             if ($existingAbsensi) {
@@ -129,7 +129,7 @@ class DeviceAbsensiController extends Controller
             // 6. Simpan absensi
             $absensi = Absensi::create([
                 'sesi_absensi_id' => $sesiAbsensi->id,
-                'mahasiswa_id' => $mahasiswaData['mahasiswa_id'],
+                'id_mahasiswa' => $mahasiswaData['mahasiswa_id'],
                 'status' => $status,
                 'waktu_absen' => $waktuAbsen,
                 'foto_absensi' => $fotoPath,

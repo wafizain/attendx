@@ -70,18 +70,20 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/data-dosen/{id}/log-password-view', [App\Http\Controllers\DosenController::class, 'logPasswordView'])->name('admin.dosen.log-password-view');
         Route::post('/data-dosen/{id}/archive', [App\Http\Controllers\DosenController::class, 'archive'])->name('admin.dosen.archive');
 
-        // Data Master - Mahasiswa
-        Route::resource('mahasiswa', App\Http\Controllers\Admin\MahasiswaManagementController::class);
-        Route::post('/mahasiswa/{id}/toggle-status', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'toggleStatus'])->name('mahasiswa.toggle-status');
-        Route::post('/mahasiswa/{id}/create-account', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'createAccount'])->name('mahasiswa.create-account');
-        Route::post('/mahasiswa/{id}/reset-password', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'resetPassword'])->name('mahasiswa.reset-password');
-        Route::post('/mahasiswa/{id}/reset-username', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'resetUsername'])->name('mahasiswa.reset-username');
-        Route::delete('/mahasiswa/{id}/delete-account', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'deleteAccount'])->name('mahasiswa.delete-account');
-        Route::post('/mahasiswa/{id}/archive', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'archive'])->name('mahasiswa.archive');
-        Route::post('/mahasiswa/bulk-action', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'bulkAction'])->name('mahasiswa.bulk-action');
-        Route::post('/mahasiswa/import', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'import'])->name('mahasiswa.import');
-        Route::get('/mahasiswa/export/data', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'export'])->name('mahasiswa.export');
-        Route::get('/mahasiswa/template/download', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'downloadTemplate'])->name('mahasiswa.download-template');
+        // Data Master - Mahasiswa (gunakan prefix admin untuk menghindari konflik dengan route mahasiswa)
+        Route::prefix('admin')->group(function () {
+            Route::resource('mahasiswa', App\Http\Controllers\Admin\MahasiswaManagementController::class);
+            Route::post('/mahasiswa/{id}/toggle-status', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'toggleStatus'])->name('mahasiswa.toggle-status');
+            Route::post('/mahasiswa/{id}/create-account', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'createAccount'])->name('mahasiswa.create-account');
+            Route::post('/mahasiswa/{id}/reset-password', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'resetPassword'])->name('mahasiswa.reset-password');
+            Route::post('/mahasiswa/{id}/reset-username', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'resetUsername'])->name('mahasiswa.reset-username');
+            Route::delete('/mahasiswa/{id}/delete-account', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'deleteAccount'])->name('mahasiswa.delete-account');
+            Route::post('/mahasiswa/{id}/archive', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'archive'])->name('mahasiswa.archive');
+            Route::post('/mahasiswa/bulk-action', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'bulkAction'])->name('mahasiswa.bulk-action');
+            Route::post('/mahasiswa/import', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'import'])->name('mahasiswa.import');
+            Route::get('/mahasiswa/export/data', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'export'])->name('mahasiswa.export');
+            Route::get('/mahasiswa/template/download', [App\Http\Controllers\Admin\MahasiswaManagementController::class, 'downloadTemplate'])->name('mahasiswa.download-template');
+        });
         
         // Data Master - Arsip
         Route::get('/arsip', [App\Http\Controllers\Admin\ArsipController::class, 'index'])->name('arsip.index');
@@ -254,6 +256,10 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:mahasiswa'])->prefix('mahasiswa')->group(function () {
         Route::get('/kelas', [App\Http\Controllers\Mahasiswa\MahasiswaViewController::class, 'kelas'])->name('mahasiswa.kelas');
         Route::get('/absensi', [App\Http\Controllers\Mahasiswa\MahasiswaViewController::class, 'absensi'])->name('mahasiswa.absensi');
+        
+        // Jadwal Kuliah Routes
+        Route::get('/jadwal', [App\Http\Controllers\Mahasiswa\JadwalController::class, 'index'])->name('mahasiswa.jadwal');
+        Route::get('/jadwal/{id}', [App\Http\Controllers\Mahasiswa\JadwalController::class, 'show'])->name('mahasiswa.jadwal.show');
         
         // Fingerprint Registration Routes
         Route::get('/fingerprint/register', [App\Http\Controllers\FingerprintRegistrationController::class, 'index'])->name('fingerprint.register');

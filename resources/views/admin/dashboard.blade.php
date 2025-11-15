@@ -117,10 +117,10 @@
                             <tbody>
                                 @forelse($recentSesi as $sesi)
                                 <tr>
-                                    <td>{{ $sesi->kelas->nama_kelas }}</td>
-                                    <td>{{ $sesi->kelas->mataKuliah->nama_matkul }}</td>
-                                    <td>{{ $sesi->kelas->dosen->name }}</td>
-                                    <td>{{ $sesi->tanggal->format('d/m/Y') }}</td>
+                                    <td>{{ $sesi->kelas->nama_kelas ?? '-' }}</td>
+                                    <td>{{ $sesi->kelas?->mataKuliah?->nama_matkul ?? '-' }}</td>
+                                    <td>{{ $sesi->kelas?->dosen?->name ?? '-' }}</td>
+                                    <td>{{ $sesi->tanggal ? $sesi->tanggal->format('d/m/Y') : '-' }}</td>
                                     <td>
                                         @if($sesi->status == 'aktif')
                                             <span class="badge bg-success">Aktif</span>

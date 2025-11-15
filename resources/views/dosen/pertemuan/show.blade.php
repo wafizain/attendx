@@ -24,11 +24,11 @@
                             <table class="table table-borderless">
                                 <tr>
                                     <td><strong>Mata Kuliah:</strong></td>
-                                    <td>{{ $pertemuan->jadwal->mataKuliah->nama }}</td>
+                                    <td>{{ $pertemuan->jadwal?->mataKuliah?->nama_mk ?? '-' }}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Kelas:</strong></td>
-                                    <td>{{ $pertemuan->jadwal->kelas->nama }}</td>
+                                    <td>{{ $pertemuan->jadwal?->kelas?->nama_kelas ?? $pertemuan->jadwal?->kelas?->nama ?? '-' }}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Pertemuan Ke:</strong></td>

@@ -73,21 +73,26 @@ class RekapAbsensiController extends Controller
         // Filter berdasarkan semester
         $semesterId = $request->filled('semester_id') ? $request->semester_id : null;
         
-        // Get pertemuan dalam semester - fallback to all pertemuan if no semester_id column
-        $pertemuanQuery = Pertemuan::where('id_jadwal', $jadwal->id)
-            ->where('status_sesi', 'selesai');
-            
-        // Only filter by semester if the relationship exists
-        if (Schema::hasColumn('pertemuan', 'semester_id')) {
-            $pertemuanQuery->where('semester_id', $semesterId);
+        // Get sesi absensi untuk kelas ini (yang sebenarnya digunakan untuk absensi)
+        $sesiQuery = SesiAbsensi::where('kelas_id', $jadwal->id_kelas)
+            ->where('status', 'selesai');
+        
+        // Filter by semester if provided
+        if ($semesterId) {
+            $semester = Semester::find($semesterId);
+            if ($semester) {
+                $sesiQuery->whereDate('tanggal', '>=', $semester->tanggal_mulai ?? now()->startOfYear())
+                          ->whereDate('tanggal', '<=', $semester->tanggal_selesai ?? now()->endOfYear());
+            }
         }
         
-        $pertemuanList = $pertemuanQuery->orderBy('tanggal', 'asc')->get();
+        $pertemuanList = $sesiQuery->orderBy('tanggal', 'asc')->get();
 
         // Get rekap per mahasiswa
         $rekapMahasiswa = [];
         foreach ($jadwal->mahasiswa as $mahasiswa) {
-            $rekap = $this->getRekapAbsensiPerMahasiswa($mahasiswa->id, $jadwal->id, $semesterId);
+            // Use id_user (FK to users table), not mahasiswa.id (PK)
+            $rekap = $this->getRekapAbsensiPerMahasiswa($mahasiswa->id_user, $jadwal->id, $semesterId);
             $rekap['mahasiswa'] = $mahasiswa;
             $rekapMahasiswa[] = $rekap;
         }
@@ -125,16 +130,24 @@ class RekapAbsensiController extends Controller
      */
     private function getRekapAbsensiPerJadwal($jadwal, $semesterId)
     {
-        // Get pertemuan dalam semester - fallback to all pertemuan if no semester_id column
-        $pertemuanQuery = Pertemuan::where('id_jadwal', $jadwal->id)
-            ->where('status_sesi', 'selesai');
-            
-        // Only filter by semester if the relationship exists
-        if (Schema::hasColumn('pertemuan', 'semester_id')) {
-            $pertemuanQuery->where('semester_id', $semesterId);
+        if (!$jadwal->id_kelas) {
+            return null;
+        }
+
+        // Get sesi absensi untuk kelas ini yang sudah selesai
+        $sesiQuery = SesiAbsensi::where('kelas_id', $jadwal->id_kelas)
+            ->where('status', 'selesai');
+        
+        // Filter by semester if provided
+        if ($semesterId) {
+            $semester = Semester::find($semesterId);
+            if ($semester) {
+                $sesiQuery->whereDate('tanggal', '>=', $semester->tanggal_mulai ?? now()->startOfYear())
+                          ->whereDate('tanggal', '<=', $semester->tanggal_selesai ?? now()->endOfYear());
+            }
         }
         
-        $pertemuanList = $pertemuanQuery->get();
+        $pertemuanList = $sesiQuery->get();
 
         if ($pertemuanList->isEmpty()) {
             return null;
@@ -160,7 +173,8 @@ class RekapAbsensiController extends Controller
         $totalAbsensi = 0;
 
         foreach ($jadwal->mahasiswa as $mahasiswa) {
-            $statMahasiswa = $this->getRekapAbsensiPerMahasiswa($mahasiswa->id, $jadwal->id, $semesterId);
+            // Use id_user (FK to users table), not mahasiswa.id (PK)
+            $statMahasiswa = $this->getRekapAbsensiPerMahasiswa($mahasiswa->id_user, $jadwal->id, $semesterId);
             
             $rekap['statistik']['hadir'] += $statMahasiswa['hadir'];
             $rekap['statistik']['izin'] += $statMahasiswa['izin'];
@@ -184,47 +198,66 @@ class RekapAbsensiController extends Controller
      */
     private function getRekapAbsensiPerMahasiswa($mahasiswaId, $jadwalId, $semesterId)
     {
-        // Get pertemuan dalam semester - fallback to all pertemuan if no semester_id column
-        $pertemuanQuery = Pertemuan::where('id_jadwal', $jadwalId)
-            ->where('status_sesi', 'selesai');
-            
-        // Only filter by semester if the relationship exists
-        if (Schema::hasColumn('pertemuan', 'semester_id')) {
-            $pertemuanQuery->where('semester_id', $semesterId);
+        // Get jadwal untuk ambil kelas_id
+        $jadwal = JadwalKuliah::find($jadwalId);
+        if (!$jadwal || !$jadwal->id_kelas) {
+            return [
+                'hadir' => 0,
+                'izin' => 0,
+                'sakit' => 0,
+                'alpha' => 0,
+                'total' => 0,
+                'persentase_kehadiran' => 0
+            ];
+        }
+
+        // Get sesi absensi untuk kelas ini yang sudah selesai
+        $sesiQuery = SesiAbsensi::where('kelas_id', $jadwal->id_kelas)
+            ->where('status', 'selesai');
+        
+        // Filter by semester if provided (via tanggal)
+        if ($semesterId) {
+            $semester = Semester::find($semesterId);
+            if ($semester) {
+                // Assuming semester has tanggal_mulai and tanggal_selesai
+                // If not, we filter by year/semester number
+                $sesiQuery->whereDate('tanggal', '>=', $semester->tanggal_mulai ?? now()->startOfYear())
+                          ->whereDate('tanggal', '<=', $semester->tanggal_selesai ?? now()->endOfYear());
+            }
         }
         
-        $pertemuanList = $pertemuanQuery->get();
+        // Eager load absensi untuk performa (avoid N+1)
+        $sesiList = $sesiQuery->with(['absensi' => function($q) use ($mahasiswaId) {
+            $q->where('id_mahasiswa', $mahasiswaId);
+        }])->get();
 
         $hadir = 0;
         $izin = 0;
         $sakit = 0;
         $alpha = 0;
 
-        foreach ($pertemuanList as $pertemuan) {
-            if ($pertemuan->sesiAbsensi) {
-                $absensi = $pertemuan->sesiAbsensi->absensi()
-                    ->where('mahasiswa_id', $mahasiswaId)
-                    ->first();
+        foreach ($sesiList as $sesi) {
+            // Gunakan eager loaded absensi (sudah di-filter di query)
+            $absensi = $sesi->absensi->first();
 
-                if ($absensi) {
-                    switch ($absensi->status) {
-                        case 'hadir':
-                            $hadir++;
-                            break;
-                        case 'izin':
-                            $izin++;
-                            break;
-                        case 'sakit':
-                            $sakit++;
-                            break;
-                        default:
-                            $alpha++;
-                            break;
-                    }
-                } else {
-                    $alpha++;
+            if ($absensi) {
+                switch ($absensi->status) {
+                    case 'hadir':
+                        $hadir++;
+                        break;
+                    case 'izin':
+                        $izin++;
+                        break;
+                    case 'sakit':
+                        $sakit++;
+                        break;
+                    case 'alpha':
+                    default:
+                        $alpha++;
+                        break;
                 }
             } else {
+                // Jika tidak ada record absensi, dianggap alpha
                 $alpha++;
             }
         }

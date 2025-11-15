@@ -89,8 +89,14 @@ class SesiAbsensi extends Model
     public function getStatistikAttribute()
     {
         return [
-            'hadir_fingerprint' => $this->absensi()->where('status', 'hadir')->where('metode', 'fingerprint')->count(),
-            'hadir_manual' => $this->absensi()->where('status', 'hadir')->where('metode', 'manual')->count(),
+            'hadir_fingerprint' => $this->absensi()
+                ->where('status', 'hadir')
+                ->where('verification_method', 'fingerprint')
+                ->count(),
+            'hadir_manual' => $this->absensi()
+                ->where('status', 'hadir')
+                ->where('verification_method', 'manual')
+                ->count(),
             'hadir' => $this->absensi()->where('status', 'hadir')->count(),
             'izin' => $this->absensi()->where('status', 'izin')->count(),
             'sakit' => $this->absensi()->where('status', 'sakit')->count(),

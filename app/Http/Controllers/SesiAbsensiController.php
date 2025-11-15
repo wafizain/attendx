@@ -184,7 +184,7 @@ class SesiAbsensiController extends Controller
             Absensi::firstOrCreate(
                 [
                     'sesi_absensi_id' => $sesiAbsensi->id,
-                    'mahasiswa_id' => $mahasiswa->id,
+                    'id_mahasiswa' => $mahasiswa->id,
                 ],
                 [
                     'status' => 'alpha',
@@ -204,7 +204,7 @@ class SesiAbsensiController extends Controller
         ]);
 
         $absensi = Absensi::where('sesi_absensi_id', $sesiId)
-            ->where('mahasiswa_id', $mahasiswaId)
+            ->where('id_mahasiswa', $mahasiswaId)
             ->firstOrFail();
 
         $absensi->update([

@@ -188,8 +188,13 @@ class JadwalKuliah extends Model
         $endDate = Carbon::parse($this->tanggal_selesai);
         $mingguKe = 1;
 
+        // Convert database hari format (1-7) to Carbon dayOfWeek format (0-6)
+        // Database: 1=Senin, 2=Selasa, ..., 7=Minggu
+        // Carbon: 0=Sunday, 1=Monday, ..., 6=Saturday
+        $targetDayOfWeek = $this->hari == 7 ? 0 : $this->hari;
+
         // Find first occurrence of the target day
-        while ($currentDate->dayOfWeek !== $this->hari && $currentDate->lte($endDate)) {
+        while ($currentDate->dayOfWeek !== $targetDayOfWeek && $currentDate->lte($endDate)) {
             $currentDate->addDay();
         }
 

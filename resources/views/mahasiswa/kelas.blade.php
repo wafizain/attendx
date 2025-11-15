@@ -18,12 +18,12 @@
                         <span class="badge bg-success">Aktif</span>
                     </div>
                     
-                    <h6 class="text-primary mb-3">{{ $kelas->mataKuliah->nama_matkul }}</h6>
+                    <h6 class="text-primary mb-3">{{ $kelas->mataKuliah->nama_mk ?? 'Mata Kuliah' }}</h6>
                     
                     <div class="mb-2">
                         <small class="text-muted">
                             <i class="fas fa-book me-2"></i>
-                            Kode: {{ $kelas->mataKuliah->kode_matkul }}
+                            Kode: {{ $kelas->mataKuliah->kode_mk ?? '-' }}
                         </small>
                     </div>
                     
@@ -46,8 +46,8 @@
                     @endif
                 </div>
                 <div class="card-footer bg-transparent border-top-0">
-                    <a href="{{ route('kelas.show', $kelas->id) }}" class="btn btn-sm btn-outline-primary w-100">
-                        <i class="fas fa-eye me-1"></i> Lihat Detail
+                    <a href="{{ route('mahasiswa.jadwal') }}" class="btn btn-sm btn-outline-primary w-100">
+                        <i class="fas fa-calendar-alt me-1"></i> Lihat Jadwal
                     </a>
                 </div>
             </div>

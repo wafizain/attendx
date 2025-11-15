@@ -439,6 +439,20 @@
       @endif
 
       @if(auth()->user()->role == 'dosen')
+      @php
+         // Cari sesi absensi aktif yang terkait dengan jadwal kuliah dosen saat ini
+         $activeSesiDosen = \App\Models\SesiAbsensi::where('status', 'aktif')
+             ->whereHas('kelas.jadwalKuliah', function($q) {
+                 $q->where('id_dosen', auth()->id());
+             })
+             ->with(['kelas' => function($q) {
+                 $q->with(['mataKuliah', 'jadwalKuliah' => function($q) {
+                     $q->where('id_dosen', auth()->id());
+                 }]);
+             }])
+             ->orderByDesc('tanggal')
+             ->first();
+      @endphp
       <!-- Dosen Menu -->
       <li class="menu-item">
         <a href="{{ route('dosen.jadwal-mengajar.index') }}" class="menu-link" data-tooltip="Jadwal Mengajar">
@@ -446,6 +460,14 @@
           <span>Jadwal Mengajar</span>
         </a>
       </li>
+      @if($activeSesiDosen)
+      <li class="menu-item">
+        <a href="{{ route('dosen.jadwal-mengajar.sesi', $activeSesiDosen->id) }}" class="menu-link" data-tooltip="Pertemuan Berlangsung">
+          <i class="menu-icon fa-solid fa-circle-play text-success"></i>
+          <span>Pertemuan Berlangsung</span>
+        </a>
+      </li>
+      @endif
       <li class="menu-item">
         <a href="{{ route('dosen.absen-manual') }}" class="menu-link" data-tooltip="Absen Manual">
           <i class="menu-icon fa-solid fa-edit"></i>
@@ -464,18 +486,12 @@
           <span>Riwayat Pertemuan</span>
         </a>
       </li>
-      <li class="menu-item">
-        <a href="{{ route('reports.by-class') }}" class="menu-link" data-tooltip="Rekap Kehadiran">
-          <i class="menu-icon fa-solid fa-file-lines"></i>
-          <span>Rekap Kehadiran</span>
-        </a>
-      </li>
       @endif
 
       @if(auth()->user()->role == 'mahasiswa')
       <!-- Mahasiswa Menu -->
       <li class="menu-item">
-        <a href="{{ route('mahasiswa.kelas') }}" class="menu-link" data-tooltip="Jadwal Kuliah">
+        <a href="{{ route('mahasiswa.jadwal') }}" class="menu-link" data-tooltip="Jadwal Kuliah">
           <i class="menu-icon fa-solid fa-calendar-days"></i>
           <span>Jadwal Kuliah</span>
         </a>

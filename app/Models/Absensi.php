@@ -55,9 +55,8 @@ class Absensi extends Model
      */
     public function mahasiswa()
     {
-        // Support both id_mahasiswa and mahasiswa_id
-        $foreignKey = Schema::hasColumn('absensi', 'id_mahasiswa') ? 'id_mahasiswa' : 'mahasiswa_id';
-        return $this->belongsTo(User::class, $foreignKey);
+        // Use id_mahasiswa as the foreign key to users table
+        return $this->belongsTo(User::class, 'id_mahasiswa');
     }
 
     /**

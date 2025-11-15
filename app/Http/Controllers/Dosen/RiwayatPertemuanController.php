@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Dosen;
 
 use App\Http\Controllers\Controller;
 use App\Models\Pertemuan;
-use App\Models\SesiAbsensi;
 use App\Models\Absensi;
 use App\Models\JadwalKuliah;
 use App\Helpers\LogHelper;
@@ -28,7 +27,7 @@ class RiwayatPertemuanController extends Controller
         $dosen = Auth::user();
         
         // Get pertemuan yang sudah selesai
-        $query = Pertemuan::with(['jadwal.mataKuliah', 'jadwal.kelas', 'jadwal.ruangan', 'sesiAbsensi.absensi.mahasiswa'])
+        $query = Pertemuan::with(['jadwal.mataKuliah', 'jadwal.kelas', 'jadwal.ruangan', 'absensi.mahasiswa'])
             ->whereHas('jadwal', function($q) use ($dosen) {
                 $q->where('id_dosen', $dosen->id);
             })
@@ -91,7 +90,7 @@ class RiwayatPertemuanController extends Controller
             'jadwal.mataKuliah', 
             'jadwal.kelas', 
             'jadwal.ruangan',
-            'sesiAbsensi.absensi.mahasiswa'
+            'absensi.mahasiswa'
         ])
         ->whereHas('jadwal', function($q) use ($dosen) {
             $q->where('id_dosen', $dosen->id);
@@ -100,18 +99,18 @@ class RiwayatPertemuanController extends Controller
 
         // Get statistik detail
         $stats = [];
-        if ($pertemuan->sesiAbsensi) {
-            $absensiList = $pertemuan->sesiAbsensi->absensi;
+        $absensiList = $pertemuan->absensi;
+        if ($absensiList && $absensiList->count() > 0) {
             $stats = [
-                'hadir_fingerprint' => $absensiList->where('status', 'hadir')->where('metode', 'fingerprint')->count(),
-                'hadir_manual' => $absensiList->where('status', 'hadir')->where('metode', 'manual')->count(),
+                'hadir_fingerprint' => $absensiList->where('status', 'hadir')->where('verification_method', 'fingerprint')->count(),
+                'hadir_manual' => $absensiList->where('status', 'hadir')->where('verification_method', 'manual')->count(),
                 'hadir' => $absensiList->where('status', 'hadir')->count(),
                 'izin' => $absensiList->where('status', 'izin')->count(),
                 'sakit' => $absensiList->where('status', 'sakit')->count(),
                 'alpha' => $absensiList->where('status', 'alpha')->count(),
                 'total' => $absensiList->count(),
             ];
-            
+
             // Hitung persentase kehadiran
             if ($stats['total'] > 0) {
                 $stats['persentase_kehadiran'] = round(($stats['hadir'] / $stats['total']) * 100, 2);

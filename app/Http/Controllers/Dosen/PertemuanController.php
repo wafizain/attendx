@@ -76,7 +76,7 @@ class PertemuanController extends Controller
         ->firstOrFail();
 
         // Get statistics
-        $totalMahasiswa = $pertemuan->jadwal->mahasiswa_count ?? 0;
+        $totalMahasiswa = $pertemuan->jadwal ? $pertemuan->jadwal->mahasiswa()->count() : 0;
         $hadirCount = $pertemuan->absensi->where('status', 'hadir')->count();
         $izinCount = $pertemuan->absensi->where('status', 'izin')->count();
         $sakitCount = $pertemuan->absensi->where('status', 'sakit')->count();

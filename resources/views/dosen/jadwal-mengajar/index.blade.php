@@ -100,7 +100,19 @@
                         <div class="col-12">
                             <div class="d-flex align-items-center">
                                 <small class="text-muted me-2" style="width: 60px;">Hari:</small>
-                                <strong>{{ ucfirst($jadwal->hari) }}</strong>
+                                @php
+                                    $hariMap = [
+                                        1 => 'Senin',
+                                        2 => 'Selasa',
+                                        3 => 'Rabu',
+                                        4 => 'Kamis',
+                                        5 => 'Jumat',
+                                        6 => 'Sabtu',
+                                        7 => 'Minggu',
+                                    ];
+                                    $namaHari = $hariMap[$jadwal->hari] ?? ucfirst($jadwal->hari);
+                                @endphp
+                                <strong>{{ $namaHari }}</strong>
                             </div>
                         </div>
                         <div class="col-12">
@@ -147,9 +159,12 @@
                             <i class="fas fa-users"></i> Kelola Absensi
                         </a>
                         @else
-                        <button type="button" class="btn btn-success btn-sm flex-fill" onclick="window.location.href='{{ route('dosen.jadwal-mengajar.show', $jadwal->id) }}'">
-                            <i class="fas fa-play"></i> Mulai Pertemuan
-                        </button>
+                        <form action="{{ route('dosen.jadwal-mengajar.mulai-kelas', $jadwal->id) }}" method="POST" class="flex-fill">
+                            @csrf
+                            <button type="submit" class="btn btn-success btn-sm w-100">
+                                <i class="fas fa-play"></i> Mulai Pertemuan
+                            </button>
+                        </form>
                         @endif
                         <a href="{{ route('dosen.jadwal-mengajar.show', $jadwal->id) }}" 
                            class="btn btn-info btn-sm flex-fill">
@@ -262,7 +277,19 @@
                         <div class="col-12">
                             <div class="d-flex align-items-center">
                                 <small class="text-muted me-2" style="width: 60px;">Hari:</small>
-                                <strong>{{ ucfirst($jadwal->hari) }}</strong>
+                                @php
+                                    $hariMap = [
+                                        1 => 'Senin',
+                                        2 => 'Selasa',
+                                        3 => 'Rabu',
+                                        4 => 'Kamis',
+                                        5 => 'Jumat',
+                                        6 => 'Sabtu',
+                                        7 => 'Minggu',
+                                    ];
+                                    $namaHari = $hariMap[$jadwal->hari] ?? ucfirst($jadwal->hari);
+                                @endphp
+                                <strong>{{ $namaHari }}</strong>
                             </div>
                         </div>
                         <div class="col-12">
@@ -282,9 +309,12 @@
                 
                 <div class="card-footer bg-white">
                     <div class="d-grid gap-2 d-md-flex">
-                        <button type="button" class="btn btn-success btn-sm flex-fill" onclick="window.location.href='{{ route('dosen.jadwal-mengajar.show', $jadwal->id) }}'">
-                            <i class="fas fa-play"></i> Mulai Pertemuan
-                        </button>
+                        <form action="{{ route('dosen.jadwal-mengajar.mulai-kelas', $jadwal->id) }}" method="POST" class="flex-fill">
+                            @csrf
+                            <button type="submit" class="btn btn-success btn-sm w-100">
+                                <i class="fas fa-play"></i> Mulai Pertemuan
+                            </button>
+                        </form>
                         <a href="{{ route('dosen.jadwal-mengajar.show', $jadwal->id) }}" 
                            class="btn btn-info btn-sm flex-fill">
                             <i class="fas fa-eye"></i> Detail

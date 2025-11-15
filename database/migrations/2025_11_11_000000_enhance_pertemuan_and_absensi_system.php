@@ -46,14 +46,10 @@ return new class extends Migration
                 $table->renameColumn('mahasiswa_id', 'id_mahasiswa');
             }
             
-            // Add unique constraint for pertemuan + mahasiswa
-            // Drop existing indexes first if they exist
-            $sm = Schema::getConnection()->getDoctrineSchemaManager();
-            $indexesFound = $sm->listTableIndexes('absensi');
-            
-            if (!isset($indexesFound['absensi_unique_pertemuan_mahasiswa'])) {
-                $table->unique(['id_pertemuan', 'id_mahasiswa'], 'absensi_unique_pertemuan_mahasiswa');
-            }
+            // Add unique constraint untuk kombinasi pertemuan + mahasiswa.
+            // Catatan: jika index dengan nama yang sama sudah ada, beberapa DB bisa melempar error saat migrate.
+            // Karena kita tidak memakai Doctrine DBAL di sini, diasumsikan migration ini dijalankan sekali di schema baru.
+            $table->unique(['id_pertemuan', 'id_mahasiswa'], 'absensi_unique_pertemuan_mahasiswa');
         });
 
         // Add device-ruangan mapping table

@@ -35,6 +35,9 @@ class DashboardController extends Controller
             'totalKelas' => Kelas::count(),
             'sesiAktif' => SesiAbsensi::where('status', 'aktif')->count(),
             'recentSesi' => SesiAbsensi::with(['kelas.mataKuliah', 'kelas.dosen'])
+                ->whereHas('kelas')
+                ->whereHas('kelas.mataKuliah')
+                ->whereHas('kelas.dosen')
                 ->orderBy('created_at', 'desc')
                 ->limit(5)
                 ->get(),
@@ -138,15 +141,15 @@ class DashboardController extends Controller
             $q->where('users.id', $mahasiswa->id);
         })->with('mataKuliah', 'dosen')->get();
         
-        // Get absensi mahasiswa
-        $totalAbsensi = Absensi::where('mahasiswa_id', $mahasiswa->id)->count();
-        $hadirCount = Absensi::where('mahasiswa_id', $mahasiswa->id)
+        // Get absensi mahasiswa (gunakan kolom id_mahasiswa sesuai schema terbaru)
+        $totalAbsensi = Absensi::where('id_mahasiswa', $mahasiswa->id)->count();
+        $hadirCount = Absensi::where('id_mahasiswa', $mahasiswa->id)
             ->where('status', 'hadir')->count();
-        $izinCount = Absensi::where('mahasiswa_id', $mahasiswa->id)
+        $izinCount = Absensi::where('id_mahasiswa', $mahasiswa->id)
             ->where('status', 'izin')->count();
-        $sakitCount = Absensi::where('mahasiswa_id', $mahasiswa->id)
+        $sakitCount = Absensi::where('id_mahasiswa', $mahasiswa->id)
             ->where('status', 'sakit')->count();
-        $alphaCount = Absensi::where('mahasiswa_id', $mahasiswa->id)
+        $alphaCount = Absensi::where('id_mahasiswa', $mahasiswa->id)
             ->where('status', 'alpha')->count();
         
         $data = [
@@ -159,7 +162,7 @@ class DashboardController extends Controller
             'alphaCount' => $alphaCount,
             'persentaseKehadiran' => $totalAbsensi > 0 ? round(($hadirCount / $totalAbsensi) * 100, 2) : 0,
             'recentAbsensi' => Absensi::with(['sesiAbsensi.kelas.mataKuliah'])
-                ->where('mahasiswa_id', $mahasiswa->id)
+                ->where('id_mahasiswa', $mahasiswa->id)
                 ->orderBy('created_at', 'desc')
                 ->limit(10)
                 ->get(),
