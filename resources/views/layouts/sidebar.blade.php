@@ -368,31 +368,18 @@
 
       <!-- Laporan -->
       <li class="menu-item">
-        <a href="#" class="menu-link" data-tooltip="Laporan" onclick="toggleSubmenu(this); return false;">
+        <a href="{{ route('reports.index') }}" class="menu-link" data-tooltip="Laporan">
           <i class="menu-icon fa-solid fa-clipboard-list"></i>
-          <span>Laporan</span>
-          <i class="fas fa-chevron-down menu-chevron"></i>
+          <span>Laporan & Rekap</span>
         </a>
-        <ul class="submenu">
-          <li class="menu-item">
-            <a href="{{ route('reports.by-student') }}" class="menu-link">
-              <i class="menu-icon fas fa-file-lines"></i>
-              <span>Rekap Absensi Mahasiswa</span>
-            </a>
-          </li>
-          <li class="menu-item">
-            <a href="{{ route('reports.by-class') }}" class="menu-link">
-              <i class="menu-icon fas fa-book-open"></i>
-              <span>Rekap Absensi Per Mata Kuliah</span>
-            </a>
-          </li>
-          <li class="menu-item">
-            <a href="{{ route('logs.index') }}" class="menu-link">
-              <i class="menu-icon fas fa-history"></i>
-              <span>Log Aktivitas</span>
-            </a>
-          </li>
-        </ul>
+      </li>
+      
+      <!-- Log Aktivitas -->
+      <li class="menu-item">
+        <a href="{{ route('logs.index') }}" class="menu-link" data-tooltip="Log Aktivitas">
+          <i class="menu-icon fas fa-history"></i>
+          <span>Log Aktivitas</span>
+        </a>
       </li>
       
       <!-- Perangkat -->

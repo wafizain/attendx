@@ -14,8 +14,11 @@
 @section('content')
 <section class="content-header">
   <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center">
-      <h1 class="h4 mb-0">Laporan & Rekap Absensi</h1>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h1 class="h4 mb-1">Laporan & Rekap Absensi</h1>
+        <p class="text-muted mb-0">Pilih jenis laporan yang ingin Anda generate</p>
+      </div>
       <ol class="breadcrumb float-sm-right mb-0">
         <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
         <li class="breadcrumb-item active">Laporan</li>
@@ -45,7 +48,7 @@
                   <option value="">-- Pilih Kelas --</option>
                   @foreach($kelas as $k)
                     <option value="{{ $k->id }}">
-                      {{ $k->mataKuliah->nama_mk }} - {{ $k->nama_kelas }} ({{ $k->tahun_ajaran }})
+                      {{ $k->mataKuliah->nama_mk ?? 'Mata Kuliah Tidak Ada' }} - {{ $k->nama_kelas }} ({{ $k->tahun_ajaran }})
                     </option>
                   @endforeach
                 </select>

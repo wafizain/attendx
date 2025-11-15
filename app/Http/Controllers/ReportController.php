@@ -18,8 +18,8 @@ class ReportController extends Controller
      */
     public function index()
     {
-        $mataKuliah = MataKuliah::where('status', 'aktif')->get();
-        $kelas = Kelas::where('status', 'aktif')->get();
+        $mataKuliah = MataKuliah::where('status', 1)->orderBy('nama_mk')->get();
+        $kelas = Kelas::with(['mataKuliah', 'dosen'])->where('status', 'aktif')->orderBy('nama_kelas')->get();
         
         return view('admin.reports.index', compact('mataKuliah', 'kelas'));
     }
@@ -70,7 +70,7 @@ class ReportController extends Controller
             ];
 
             foreach ($sesiList as $sesi) {
-                $absensi = $sesi->absensi->where('mahasiswa_id', $mahasiswa->id)->first();
+                $absensi = $sesi->absensi->where('id_mahasiswa', $mahasiswa->id)->first();
                 $status = $absensi ? $absensi->status : 'alpha';
                 
                 $data['detail'][] = [
@@ -115,12 +115,9 @@ class ReportController extends Controller
 
         $mahasiswa = User::where('role', 'mahasiswa')->findOrFail($validated['mahasiswa_id']);
         
-        // Get kelas mahasiswa
-        $kelasIds = $mahasiswa->kelasAsMahasiswa()->pluck('kelas.id');
-
-        // Get absensi
-        $query = Absensi::where('mahasiswa_id', $mahasiswa->id)
-            ->with(['sesiAbsensi.kelas.mataKuliah']);
+        // Get absensi dengan kolom yang benar (id_mahasiswa)
+        $query = Absensi::where('id_mahasiswa', $mahasiswa->id)
+            ->with(['sesiAbsensi.kelas.mataKuliah', 'sesiAbsensi.kelas.dosen']);
 
         if ($request->filled('start_date')) {
             $query->whereHas('sesiAbsensi', function($q) use ($request) {
@@ -145,6 +142,10 @@ class ReportController extends Controller
         // Group by kelas
         $reportByKelas = [];
         foreach ($absensiList as $absensi) {
+            if (!$absensi->sesiAbsensi || !$absensi->sesiAbsensi->kelas) {
+                continue;
+            }
+            
             $kelasId = $absensi->sesiAbsensi->kelas_id;
             if (!isset($reportByKelas[$kelasId])) {
                 $reportByKelas[$kelasId] = [
@@ -239,7 +240,7 @@ class ReportController extends Controller
                 $alpha = 0;
 
                 foreach ($sesiList as $sesi) {
-                    $absensi = $sesi->absensi->where('mahasiswa_id', $mahasiswa->id)->first();
+                    $absensi = $sesi->absensi->where('id_mahasiswa', $mahasiswa->id)->first();
                     $status = $absensi ? strtoupper(substr($absensi->status, 0, 1)) : 'A';
                     $row[] = $status;
 
@@ -283,7 +284,7 @@ class ReportController extends Controller
 
         $mahasiswa = User::where('role', 'mahasiswa')->findOrFail($validated['mahasiswa_id']);
         
-        $query = Absensi::where('mahasiswa_id', $mahasiswa->id)
+        $query = Absensi::where('id_mahasiswa', $mahasiswa->id)
             ->with(['sesiAbsensi.kelas.mataKuliah']);
 
         if ($request->filled('start_date')) {
