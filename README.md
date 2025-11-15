@@ -68,7 +68,7 @@ Jalankan:
 php artisan key:generate
 ```
 
-10. Jalankan Aplikasi 🎉
+10. Jalankan Aplikasi 
 Sekarang nyalain server Laravel:
 ```bash
 php artisan serve
