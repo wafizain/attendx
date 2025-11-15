@@ -28,19 +28,114 @@ class DashboardController extends Controller
     
     private function adminDashboard()
     {
+        $today = now()->format('Y-m-d');
+        
+        // Statistik Dasar
+        $totalAdmin = User::where('role', 'admin')->count();
+        $totalDosen = User::where('role', 'dosen')->count();
+        $totalMahasiswa = User::where('role', 'mahasiswa')->count();
+        $totalKelas = Kelas::count();
+        $totalMataKuliah = \App\Models\MataKuliah::count();
+        
+        // Sesi Absensi
+        $sesiAktif = SesiAbsensi::where('status', 'aktif')->count();
+        $sesiHariIni = SesiAbsensi::whereDate('tanggal', $today)->count();
+        
+        // Statistik Kehadiran Hari Ini
+        $absensiHariIni = Absensi::whereDate('created_at', $today)->count();
+        $hadirHariIni = Absensi::whereDate('created_at', $today)->where('status', 'hadir')->count();
+        $izinHariIni = Absensi::whereDate('created_at', $today)->where('status', 'izin')->count();
+        $sakitHariIni = Absensi::whereDate('created_at', $today)->where('status', 'sakit')->count();
+        $alphaHariIni = Absensi::whereDate('created_at', $today)->where('status', 'alpha')->count();
+        
+        // Persentase Kehadiran Hari Ini
+        $persentaseKehadiranHariIni = $absensiHariIni > 0 
+            ? round(($hadirHariIni / $absensiHariIni) * 100, 1) 
+            : 0;
+        
+        // Statistik Kehadiran Keseluruhan
+        $totalAbsensi = Absensi::count();
+        $totalHadir = Absensi::where('status', 'hadir')->count();
+        $totalIzin = Absensi::where('status', 'izin')->count();
+        $totalSakit = Absensi::where('status', 'sakit')->count();
+        $totalAlpha = Absensi::where('status', 'alpha')->count();
+        
+        // Persentase Kehadiran Keseluruhan
+        $persentaseKehadiranTotal = $totalAbsensi > 0 
+            ? round(($totalHadir / $totalAbsensi) * 100, 1) 
+            : 0;
+        
+        // Data untuk Chart - Kehadiran 7 Hari Terakhir
+        $chartLabels = [];
+        $chartHadir = [];
+        $chartIzin = [];
+        $chartSakit = [];
+        $chartAlpha = [];
+        
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $chartLabels[] = $date->isoFormat('DD MMM');
+            
+            $chartHadir[] = Absensi::whereDate('created_at', $date->format('Y-m-d'))
+                ->where('status', 'hadir')->count();
+            $chartIzin[] = Absensi::whereDate('created_at', $date->format('Y-m-d'))
+                ->where('status', 'izin')->count();
+            $chartSakit[] = Absensi::whereDate('created_at', $date->format('Y-m-d'))
+                ->where('status', 'sakit')->count();
+            $chartAlpha[] = Absensi::whereDate('created_at', $date->format('Y-m-d'))
+                ->where('status', 'alpha')->count();
+        }
+        
+        // Recent Sessions
+        $recentSesi = SesiAbsensi::with(['kelas.mataKuliah', 'kelas.dosen'])
+            ->whereHas('kelas')
+            ->whereHas('kelas.mataKuliah')
+            ->whereHas('kelas.dosen')
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+        
+        // Total Mahasiswa untuk ditampilkan di welcome section
+        $totalUser = $totalMahasiswa;
+        
         $data = [
-            'totalAdmin' => User::where('role', 'admin')->count(),
-            'totalDosen' => User::where('role', 'dosen')->count(),
-            'totalMahasiswa' => User::where('role', 'mahasiswa')->count(),
-            'totalKelas' => Kelas::count(),
-            'sesiAktif' => SesiAbsensi::where('status', 'aktif')->count(),
-            'recentSesi' => SesiAbsensi::with(['kelas.mataKuliah', 'kelas.dosen'])
-                ->whereHas('kelas')
-                ->whereHas('kelas.mataKuliah')
-                ->whereHas('kelas.dosen')
-                ->orderBy('created_at', 'desc')
-                ->limit(5)
-                ->get(),
+            // Statistik Dasar
+            'totalAdmin' => $totalAdmin,
+            'totalDosen' => $totalDosen,
+            'totalMahasiswa' => $totalMahasiswa,
+            'totalKelas' => $totalKelas,
+            'totalMataKuliah' => $totalMataKuliah,
+            
+            // Sesi
+            'sesiAktif' => $sesiAktif,
+            'sesiHariIni' => $sesiHariIni,
+            'recentSesi' => $recentSesi,
+            
+            // Kehadiran Hari Ini
+            'absensiHariIni' => $absensiHariIni,
+            'hadirHariIni' => $hadirHariIni,
+            'izinHariIni' => $izinHariIni,
+            'sakitHariIni' => $sakitHariIni,
+            'alphaHariIni' => $alphaHariIni,
+            'persentaseKehadiranHariIni' => $persentaseKehadiranHariIni,
+            
+            // Kehadiran Total
+            'totalAbsensi' => $totalAbsensi,
+            'totalHadir' => $totalHadir,
+            'totalIzin' => $totalIzin,
+            'totalSakit' => $totalSakit,
+            'totalAlpha' => $totalAlpha,
+            'persentaseKehadiranTotal' => $persentaseKehadiranTotal,
+            
+            // Chart Data
+            'chartLabels' => json_encode($chartLabels),
+            'chartHadir' => json_encode($chartHadir),
+            'chartIzin' => json_encode($chartIzin),
+            'chartSakit' => json_encode($chartSakit),
+            'chartAlpha' => json_encode($chartAlpha),
+            
+            // Sistem
+            'totalUser' => $totalUser,
         ];
         
         return view('admin.dashboard', $data);
