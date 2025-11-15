@@ -43,11 +43,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/prodi/template/download', [App\Http\Controllers\ProdiController::class, 'downloadTemplate'])->name('prodi.download-template');
         
         // CRUD Admin
-        Route::resource('admin', App\Http\Controllers\AdminController::class)->names([
+        Route::resource('admin', App\Http\Controllers\AdminController::class)->except(['show'])->names([
             'index' => 'admin.index',
             'create' => 'admin.create',
             'store' => 'admin.store',
-            'show' => 'admin.show',
             'edit' => 'admin.edit',
             'update' => 'admin.update',
             'destroy' => 'admin.destroy'
