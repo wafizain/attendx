@@ -260,7 +260,7 @@
                 <h1 class="welcome-title">Dashboard Admin</h1>
                 <p class="welcome-text">Selamat datang, <strong>{{ auth()->user()->name }}</strong></p>
                 <small class="text-secondary-clean">
-                    {{ \Carbon\Carbon::now()->isoFormat('dddd, D MMMM YYYY') }}
+                    {{ \Carbon\Carbon::now()->locale('id')->isoFormat('dddd, D MMMM YYYY') }}
                 </small>
             </div>
             <div class="col-md-4 text-md-end mt-3 mt-md-0">

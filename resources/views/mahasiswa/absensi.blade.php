@@ -71,7 +71,7 @@
                             <option value="">Semua Kelas</option>
                             @foreach($kelasList as $kelas)
                             <option value="{{ $kelas->id }}" {{ request('kelas_id') == $kelas->id ? 'selected' : '' }}>
-                                {{ $kelas->nama_kelas }} - {{ $kelas->mataKuliah ? $kelas->mataKuliah->nama_matkul : 'Mata Kuliah Tidak Ditemukan' }}
+                                {{ $kelas->nama_kelas }} - {{ $kelas->mataKuliah->nama_mk ?? 'Mata Kuliah Tidak Ditemukan' }}
                             </option>
                             @endforeach
                         </select>
@@ -115,11 +115,9 @@
                             <th>No</th>
                             <th>Tanggal</th>
                             <th>Mata Kuliah</th>
-                            <th>Kelas</th>
                             <th>Pertemuan</th>
                             <th>Status</th>
                             <th>Waktu Absen</th>
-                            <th>Metode</th>
                             <th>Keterangan</th>
                         </tr>
                     </thead>
@@ -128,8 +126,13 @@
                         <tr>
                             <td>{{ $absensiList->firstItem() + $index }}</td>
                             <td>{{ $absensi->sesiAbsensi->tanggal->format('d/m/Y') }}</td>
-                            <td>{{ $absensi->sesiAbsensi->kelas->mataKuliah ? $absensi->sesiAbsensi->kelas->mataKuliah->nama_matkul : 'Mata Kuliah Tidak Ditemukan' }}</td>
-                            <td>{{ $absensi->sesiAbsensi->kelas->nama_kelas }}</td>
+                            <td>
+                                @if($absensi->sesiAbsensi && $absensi->sesiAbsensi->kelas && $absensi->sesiAbsensi->kelas->mataKuliah)
+                                    {{ $absensi->sesiAbsensi->kelas->mataKuliah->nama_mk }}
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
+                            </td>
                             <td>{{ $absensi->sesiAbsensi->pertemuan_ke ?? '-' }}</td>
                             <td>
                                 @if($absensi->status == 'hadir')
@@ -149,24 +152,11 @@
                                     -
                                 @endif
                             </td>
-                            <td>
-                                @if($absensi->metode_absen == 'fingerprint')
-                                    <span class="badge bg-primary">
-                                        <i class="fas fa-fingerprint"></i> Sidik Jari
-                                    </span>
-                                @elseif($absensi->metode_absen == 'manual')
-                                    <span class="badge bg-secondary">
-                                        <i class="fas fa-edit"></i> Manual
-                                    </span>
-                                @else
-                                    -
-                                @endif
-                            </td>
                             <td>{{ $absensi->keterangan ?? '-' }}</td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-4">
+                            <td colspan="7" class="text-center text-muted py-4">
                                 Belum ada riwayat absensi
                             </td>
                         </tr>

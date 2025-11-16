@@ -97,7 +97,7 @@
                 <td><strong>{{ $dosen->nidn }}</strong></td>
                 <td>{{ $dosen->nama }}</td>
                 <td>{{ $dosen->jabatan_akademik }}</td>
-                <td>{{ $dosen->status == 1 ? 'Aktif' : 'Nonaktif' }}</td>
+                <td>{{ $dosen->status_aktif == 1 ? 'Aktif' : 'Nonaktif' }}</td>
                 <td>
                   <div class="btn-group btn-group-sm table-actions" role="group">
                     <a href="{{ route('admin.dosen.show', $dosen->id) }}" class="btn" title="Detail">

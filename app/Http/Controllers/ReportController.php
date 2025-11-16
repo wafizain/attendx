@@ -19,7 +19,13 @@ class ReportController extends Controller
     public function index()
     {
         $mataKuliah = MataKuliah::where('status', 1)->orderBy('nama_mk')->get();
-        $kelas = Kelas::with(['mataKuliah', 'dosen'])->where('status', 'aktif')->orderBy('nama_kelas')->get();
+        
+        // Get kelas with proper eager loading and ordering
+        $kelas = Kelas::with(['mataKuliah', 'dosen'])
+            ->where('status', 1)
+            ->orderBy('nama_kelas')
+            ->orderBy('kode')
+            ->get();
         
         return view('admin.reports.index', compact('mataKuliah', 'kelas'));
     }

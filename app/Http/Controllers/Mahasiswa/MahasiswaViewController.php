@@ -31,7 +31,11 @@ class MahasiswaViewController extends Controller
     {
         $mahasiswa = auth()->user();
         
-        $query = Absensi::with(['sesiAbsensi.kelas.mataKuliah'])
+        $query = Absensi::with(['sesiAbsensi' => function($q) {
+                $q->with(['kelas' => function($q2) {
+                    $q2->with('mataKuliah');
+                }]);
+            }])
             ->where('id_mahasiswa', $mahasiswa->id);
         
         // Filter by kelas

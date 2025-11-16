@@ -89,7 +89,6 @@
                             <th>Kode</th>
                             <th>Nama Ruangan</th>
                             <th>Kapasitas</th>
-                            <th>Lokasi</th>
                             <th>Jadwal Aktif</th>
                             <th>Status</th>
                             <th width="150">Aksi</th>
@@ -102,7 +101,6 @@
                             <td>{{ $ruangan->kode }}</td>
                             <td>{{ $ruangan->nama }}</td>
                             <td class="text-center">{{ $ruangan->kapasitas }}</td>
-                            <td>{{ $ruangan->lokasi ?? '-' }}</td>
                             <td class="text-center">{{ $ruangan->jadwalKuliah()->where('status', 'aktif')->count() }}</span>
                             </td>
                             <td>
@@ -128,7 +126,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="9" class="text-center text-muted">Tidak ada data ruangan</td>
+                            <td colspan="7" class="text-center text-muted">Tidak ada data ruangan</td>
                         </tr>
                         @endforelse
                     </tbody>

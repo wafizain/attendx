@@ -91,6 +91,14 @@
                                 <strong>{{ $jadwal->kelas ? $jadwal->kelas->nama : '-' }}</strong>
                             </div>
                         </div>
+                        @if($jadwal->pertemuan_hari_ini)
+                        <div class="col-12">
+                            <div class="d-flex align-items-center">
+                                <small class="text-muted me-2" style="width: 60px;">Pertemuan:</small>
+                                <strong class="text-dark">Pertemuan ke-{{ $jadwal->pertemuan_hari_ini->minggu_ke }}</strong>
+                            </div>
+                        </div>
+                        @endif
                         <div class="col-12">
                             <div class="d-flex align-items-center">
                                 <small class="text-muted me-2" style="width: 60px;">Ruangan:</small>
@@ -266,6 +274,16 @@
                             <div class="d-flex align-items-center">
                                 <small class="text-muted me-2" style="width: 60px;">Kelas:</small>
                                 <strong>{{ $jadwal->kelas ? $jadwal->kelas->nama : '-' }}</strong>
+                            </div>
+                        </div>
+                        @php
+                            $nextMingguKe = (int) \App\Models\Pertemuan::where('id_jadwal', $jadwal->id)->max('minggu_ke') + 1;
+                        @endphp
+                        <div class="col-12">
+                            <div class="d-flex align-items-center">
+                                <small class="text-muted me-2" style="width: 60px;">Pertemuan:</small>
+                                <strong class="text-dark">Pertemuan ke-{{ $nextMingguKe }}</strong>
+                                <small class="text-muted ms-1">(berikutnya)</small>
                             </div>
                         </div>
                         <div class="col-12">

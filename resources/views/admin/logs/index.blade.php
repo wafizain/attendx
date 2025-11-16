@@ -167,7 +167,6 @@
                   <th style="width: 140px;">Tanggal & Waktu</th>
                   <th style="width: 150px;">User</th>
                   <th style="width: 100px;">Action</th>
-                  <th style="width: 100px;">Module</th>
                   <th>Deskripsi</th>
                   <th style="width: 120px;">IP Address</th>
                   <th style="width: 100px;">Aksi</th>
@@ -200,13 +199,6 @@
                     </td>
                     <td>
                       <span class="badge badge-action {{ $actionClass }}">{{ strtoupper($log->action) }}</span>
-                    </td>
-                    <td>
-                      @if($log->module)
-                        <span class="badge badge-secondary">{{ ucfirst($log->module) }}</span>
-                      @else
-                        <span class="text-muted">-</span>
-                      @endif
                     </td>
                     <td>
                       <div class="text-truncate-log" title="{{ $log->description }}">
@@ -250,7 +242,7 @@
                   </tr>
                 @empty
                   <tr>
-                    <td colspan="8" class="text-center text-muted py-4">Belum ada data log.</td>
+                    <td colspan="7" class="text-center text-muted py-4">Belum ada data log.</td>
                   </tr>
                 @endforelse
               </tbody>

@@ -82,6 +82,40 @@
         animation: pulse 1.5s infinite;
     }
     
+    .face-scanner {
+        width: 300px;
+        height: 300px;
+        border: 2px dashed #CBD5E0;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #F7FAFC;
+        cursor: pointer;
+        transition: all 0.3s;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .face-scanner:hover {
+        border-color: #48BB78;
+        background: #F0FFF4;
+    }
+    
+    .face-scanner.scanning {
+        border-color: #10B981;
+        background: #ECFDF5;
+        animation: pulse 1.5s infinite;
+    }
+    
+    .face-scanner video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1);
+        -webkit-transform: scaleX(-1);
+    }
+    
     @keyframes pulse {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.7; }
@@ -106,6 +140,11 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="biometrik-tab" data-bs-toggle="tab" data-bs-target="#biometrik" type="button" role="tab">
                 <i class="fas fa-fingerprint me-2"></i>Biometrik
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="face-tab" data-bs-toggle="tab" data-bs-target="#face" type="button" role="tab">
+                <i class="fas fa-user-circle me-2"></i>Face
             </button>
         </li>
     </ul>
@@ -309,6 +348,139 @@
                 </div>
             </div>
             <!-- End Tab Biometrik -->
+            
+            <!-- Tab Face -->
+            <div class="tab-pane fade" id="face" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="biometric-card">
+                            <h6 class="fw-semibold mb-3">
+                                <i class="fas fa-user-circle text-success me-2"></i>
+                                Pendaftaran Pengenalan Wajah
+                            </h6>
+                            
+                            <div class="text-center mb-3">
+                                <div class="face-scanner" id="faceScanner" onclick="startFaceScan()">
+                                    <div class="text-center" id="facePlaceholder">
+                                        <i class="fas fa-user-circle fa-5x text-muted mb-2"></i>
+                                        <p class="text-muted mb-0">Klik untuk Scan Wajah</p>
+                                    </div>
+                                    <video id="faceVideo" style="display:none;" autoplay></video>
+                                    <canvas id="faceCanvas" style="display:none;"></canvas>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info" id="faceStatus">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Status: 
+                                @if($mahasiswa->face_enrolled ?? false)
+                                    <strong class="text-success">Sudah Terdaftar</strong>
+                                    <br><small>Terakhir: {{ $mahasiswa->last_enrolled_at ? $mahasiswa->last_enrolled_at->format('d/m/Y H:i') : '-' }}</small>
+                                @else
+                                    <strong class="text-warning">Belum Terdaftar</strong>
+                                @endif
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-success flex-fill" onclick="enrollFace()">
+                                    <i class="fas fa-camera me-2"></i>
+                                    Daftarkan Wajah
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="stopFaceScan()">
+                                    <i class="fas fa-stop me-2"></i>
+                                    Stop
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="biometric-card">
+                            <h6 class="fw-semibold mb-3">
+                                <i class="fas fa-info-circle text-info me-2"></i>
+                                Panduan
+                            </h6>
+                            <ul class="small text-muted mb-0">
+                                <li>Pastikan wajah terlihat jelas</li>
+                                <li>Pencahayaan cukup terang</li>
+                                <li>Posisi wajah menghadap kamera</li>
+                                <li>Lepas kacamata jika memungkinkan</li>
+                                <li>Jangan ada objek menutupi wajah</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Riwayat Face Recognition -->
+                <div class="mt-4">
+                    <h6 class="fw-semibold mb-3">
+                        <i class="fas fa-history text-secondary me-2"></i>
+                        Riwayat Pendaftaran Wajah
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>No</th>
+                                    <th>Tanggal Daftar</th>
+                                    <th>Quality Score</th>
+                                    <th>Status</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php
+                                    $faceRecords = $mahasiswa->biometrik->where('tipe', 'face');
+                                @endphp
+                                @forelse($faceRecords as $index => $bio)
+                                <tr>
+                                    <td>{{ $index + 1 }}</td>
+                                    <td>{{ $bio->enrolled_at->format('d/m/Y H:i') }}</td>
+                                    <td>
+                                        @if($bio->quality_score)
+                                            <span class="badge bg-{{ $bio->quality_score >= 80 ? 'success' : ($bio->quality_score >= 60 ? 'warning' : 'danger') }}">
+                                                {{ $bio->quality_score }}%
+                                            </span>
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($bio->revoked_at)
+                                            <span class="badge bg-secondary">Dicabut</span>
+                                        @else
+                                            <span class="badge bg-success">Aktif</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if(!$bio->revoked_at)
+                                            <form action="{{ route('biometrik.revoke', $bio->id) }}" method="POST" style="display:inline;">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('Yakin ingin mencabut template ini?')">
+                                                    <i class="fas fa-ban"></i> Cabut
+                                                </button>
+                                            </form>
+                                        @endif
+                                        <form action="{{ route('biometrik.destroy', $bio->id) }}" method="POST" style="display:inline;">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Yakin ingin menghapus template ini?')">
+                                                <i class="fas fa-trash"></i> Hapus
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">Belum ada riwayat pendaftaran wajah</td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!-- End Tab Face -->
         </div>
     </div>
 </div>
@@ -399,6 +571,99 @@ function enrollFingerprint() {
     .then(result => {
         if (result.success) {
             alert('Sidik jari berhasil didaftarkan!');
+            location.reload();
+        } else {
+            alert('Gagal: ' + result.message);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+}
+
+// Face Recognition Functions
+let faceStream = null;
+let isFaceScanning = false;
+
+function startFaceScan() {
+    if (isFaceScanning) return;
+    
+    const scanner = document.getElementById('faceScanner');
+    const video = document.getElementById('faceVideo');
+    const placeholder = document.getElementById('facePlaceholder');
+    
+    // Request camera access
+    navigator.mediaDevices.getUserMedia({ video: { width: 300, height: 300 } })
+        .then(stream => {
+            faceStream = stream;
+            video.srcObject = stream;
+            video.style.display = 'block';
+            placeholder.style.display = 'none';
+            scanner.classList.add('scanning');
+            isFaceScanning = true;
+        })
+        .catch(error => {
+            alert('Tidak dapat mengakses kamera: ' + error.message);
+        });
+}
+
+function stopFaceScan() {
+    if (faceStream) {
+        faceStream.getTracks().forEach(track => track.stop());
+        faceStream = null;
+    }
+    
+    const scanner = document.getElementById('faceScanner');
+    const video = document.getElementById('faceVideo');
+    const placeholder = document.getElementById('facePlaceholder');
+    
+    video.style.display = 'none';
+    placeholder.style.display = 'block';
+    scanner.classList.remove('scanning');
+    isFaceScanning = false;
+}
+
+function enrollFace() {
+    if (!isFaceScanning) {
+        alert('Silakan mulai scan wajah terlebih dahulu!');
+        return;
+    }
+    
+    if (!confirm('Daftarkan wajah untuk mahasiswa ini?')) return;
+    
+    const video = document.getElementById('faceVideo');
+    const canvas = document.getElementById('faceCanvas');
+    const context = canvas.getContext('2d');
+    
+    // Capture image from video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0);
+    
+    // Convert to base64
+    const imageData = canvas.toDataURL('image/jpeg');
+    
+    // Simulasi enrollment - ganti dengan API call ke face recognition service
+    const data = {
+        tipe: 'face',
+        ext_ref: 'FACE_' + Date.now(),
+        quality_score: Math.floor(Math.random() * 30) + 70, // Random 70-100
+        face_embedding_path: imageData // In production, send to backend for processing
+    };
+    
+    fetch('{{ route("mahasiswa.biometrik.enroll", $mahasiswa->id) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('Wajah berhasil didaftarkan!');
+            stopFaceScan();
             location.reload();
         } else {
             alert('Gagal: ' + result.message);

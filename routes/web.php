@@ -98,10 +98,16 @@ Route::middleware(['auth'])->group(function () {
 
         // Log Aktivitas Routes
         Route::get('/logs', [App\Http\Controllers\Admin\LogController::class, 'index'])->name('logs.index');
-        Route::get('/logs/{id}', [App\Http\Controllers\Admin\LogController::class, 'show'])->name('logs.show');
-        Route::delete('/logs/{id}', [App\Http\Controllers\Admin\LogController::class, 'destroy'])->name('logs.destroy');
         Route::delete('/logs-clear', [App\Http\Controllers\Admin\LogController::class, 'clear'])->name('logs.clear');
         Route::get('/logs-export', [App\Http\Controllers\Admin\LogController::class, 'export'])->name('logs.export');
+        
+        // Audit & Log Routes (must be before /logs/{id})
+        Route::get('/logs/activity', [App\Http\Controllers\Admin\AuditController::class, 'activity'])->name('logs.activity');
+        Route::get('/logs/password', [App\Http\Controllers\Admin\AuditController::class, 'password'])->name('logs.password');
+        Route::get('/logs/device', [App\Http\Controllers\Admin\AuditController::class, 'device'])->name('logs.device');
+        
+        Route::get('/logs/{id}', [App\Http\Controllers\Admin\LogController::class, 'show'])->name('logs.show');
+        Route::delete('/logs/{id}', [App\Http\Controllers\Admin\LogController::class, 'destroy'])->name('logs.destroy');
 
         // Mata Kuliah Routes
         Route::post('/mata-kuliah/bulk-action', [App\Http\Controllers\Admin\MataKuliahManagementController::class, 'bulkAction'])->name('mata-kuliah.bulk-action');
@@ -163,11 +169,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/absensi/foto', [App\Http\Controllers\Admin\AbsensiManagementController::class, 'foto'])->name('absensi.foto');
         Route::delete('/absensi/{id}/foto', [App\Http\Controllers\Admin\AbsensiManagementController::class, 'deleteFoto'])->name('absensi.delete-foto');
 
-        // Audit & Log Routes
-        Route::get('/logs/activity', [App\Http\Controllers\Admin\AuditController::class, 'activity'])->name('logs.activity');
-        Route::get('/logs/password', [App\Http\Controllers\Admin\AuditController::class, 'password'])->name('logs.password');
-        Route::get('/logs/device', [App\Http\Controllers\Admin\AuditController::class, 'device'])->name('logs.device');
-
         // Reports Routes
         Route::get('/reports/export', [ReportController::class, 'index'])->name('reports.export');
         Route::get('/reports/statistik', [ReportController::class, 'statistik'])->name('reports.statistik');
@@ -175,6 +176,13 @@ Route::middleware(['auth'])->group(function () {
         // Settings Routes
         Route::get('/settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'branding'])->name('settings.branding');
         Route::post('/settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'updateBranding'])->name('settings.update-branding');
+        
+        // Semester Routes
+        Route::get('/semester', [App\Http\Controllers\Admin\SemesterController::class, 'index'])->name('admin.semester.index');
+        Route::post('/semester', [App\Http\Controllers\Admin\SemesterController::class, 'store'])->name('admin.semester.store');
+        Route::get('/semester/{id}/edit', [App\Http\Controllers\Admin\SemesterController::class, 'edit'])->name('admin.semester.edit');
+        Route::put('/semester/{id}', [App\Http\Controllers\Admin\SemesterController::class, 'update'])->name('admin.semester.update');
+        Route::post('/semester/{id}/activate', [App\Http\Controllers\Admin\SemesterController::class, 'activate'])->name('admin.semester.activate');
     });
 
     // Admin & Dosen Routes

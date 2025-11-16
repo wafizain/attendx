@@ -17,6 +17,7 @@ class JadwalKuliah extends Model
         'id_dosen',
         'id_kelas',
         'id_ruangan',
+        'semester_id',
         'hari',
         'jam_mulai',
         'jam_selesai',
@@ -84,6 +85,49 @@ class JadwalKuliah extends Model
     public function pertemuan()
     {
         return $this->hasMany(Pertemuan::class, 'id_jadwal');
+    }
+
+    /**
+     * Relasi ke semester
+     */
+    public function semester()
+    {
+        return $this->belongsTo(Semester::class, 'semester_id');
+    }
+
+    /**
+     * Get jumlah pertemuan dari semester
+     */
+    public function getJumlahPertemuanAttribute()
+    {
+        return $this->semester ? $this->semester->jumlah_pertemuan : 16;
+    }
+
+    /**
+     * Check if pertemuan is UTS
+     */
+    public function isPertemuanUTS($pertemuanKe)
+    {
+        return $this->semester && $this->semester->isUTS($pertemuanKe);
+    }
+
+    /**
+     * Check if pertemuan is UAS
+     */
+    public function isPertemuanUAS($pertemuanKe)
+    {
+        return $this->semester && $this->semester->isUAS($pertemuanKe);
+    }
+
+    /**
+     * Get meeting type for specific pertemuan
+     */
+    public function getMeetingType($pertemuanKe)
+    {
+        if (!$this->semester) {
+            return 'Reguler';
+        }
+        return $this->semester->getMeetingType($pertemuanKe);
     }
 
     /**

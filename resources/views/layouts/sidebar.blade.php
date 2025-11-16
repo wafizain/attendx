@@ -294,8 +294,7 @@
     <span>AttendX</span>
   </div>
   
-    
-    
+  <p class="menu-label">MENU UTAMA</p>
     <ul class="sidebar-menu">
       <li class="menu-item">
         <a href="{{ route('dashboard') }}" class="menu-link" data-tooltip="Dashboard">
@@ -371,6 +370,14 @@
         <a href="{{ route('reports.index') }}" class="menu-link" data-tooltip="Laporan">
           <i class="menu-icon fa-solid fa-clipboard-list"></i>
           <span>Laporan & Rekap</span>
+        </a>
+      </li>
+      
+      <!-- Semester -->
+      <li class="menu-item">
+        <a href="{{ route('admin.semester.index') }}" class="menu-link" data-tooltip="Semester">
+          <i class="menu-icon fas fa-calendar-alt"></i>
+          <span>Semester</span>
         </a>
       </li>
       
@@ -456,12 +463,6 @@
       </li>
       @endif
       <li class="menu-item">
-        <a href="{{ route('dosen.absen-manual') }}" class="menu-link" data-tooltip="Absen Manual">
-          <i class="menu-icon fa-solid fa-edit"></i>
-          <span>Absen Manual</span>
-        </a>
-      </li>
-      <li class="menu-item">
         <a href="{{ route('dosen.rekap-absensi.index') }}" class="menu-link" data-tooltip="Rekap Absensi Mahasiswa">
           <i class="menu-icon fa-solid fa-chart-line"></i>
           <span>Rekap Absensi Mahasiswa</span>
@@ -487,12 +488,6 @@
         <a href="{{ route('mahasiswa.absensi') }}" class="menu-link" data-tooltip="Riwayat Absensi">
           <i class="menu-icon fas fa-history"></i>
           <span>Riwayat Absensi</span>
-        </a>
-      </li>
-      <li class="menu-item">
-        <a href="{{ Route::has('izin.create') ? route('izin.create') : '#' }}" class="menu-link" data-tooltip="Ajukan Izin">
-          <i class="menu-icon fa-solid fa-file-medical"></i>
-          <span>Ajukan Izin</span>
         </a>
       </li>
       @endif

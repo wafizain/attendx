@@ -82,8 +82,9 @@ class JadwalKuliahController extends Controller
         $dosenList = User::where('role', 'dosen')->where('status', 'aktif')->orderBy('name')->get();
         $kelasList = Kelas::where('status', 1)->orderBy('kode')->get();
         $ruanganList = Ruangan::aktif()->orderBy('kode')->get();
+        $semesterList = \App\Models\Semester::orderByLatest()->get();
 
-        return view('admin.jadwal.create', compact('mkList', 'dosenList', 'kelasList', 'ruanganList'));
+        return view('admin.jadwal.create', compact('mkList', 'dosenList', 'kelasList', 'ruanganList', 'semesterList'));
     }
 
     /**
@@ -96,46 +97,47 @@ class JadwalKuliahController extends Controller
             'id_dosen' => 'required|exists:users,id',
             'id_kelas' => 'nullable|exists:kelas,id',
             'id_ruangan' => 'required|exists:ruangan,id',
+            'semester_id' => 'required|exists:semesters,id',
             'hari' => 'required|integer|min:1|max:7',
             'jam_mulai' => 'required|date_format:H:i',
             'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
-            'tanggal_mulai' => 'required|date',
-            'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
             'absen_open_min' => 'nullable|integer|min:0|max:60',
             'absen_close_min' => 'nullable|integer|min:0|max:120',
             'grace_late_min' => 'nullable|integer|min:0|max:60',
             'wajah_wajib' => 'nullable|boolean',
             'catatan' => 'nullable|string',
-            'jumlah_pertemuan' => 'nullable|integer|min:1|max:20',
         ]);
 
-        // Check room conflict
-        if (JadwalKuliah::hasRoomConflict(
-            $validated['id_ruangan'],
-            $validated['hari'],
-            $validated['jam_mulai'],
-            $validated['jam_selesai'],
-            $validated['tanggal_mulai'],
-            $validated['tanggal_selesai']
-        )) {
+        // Set default values for absensi rules if not provided
+        $validated['absen_open_min'] = $validated['absen_open_min'] ?? 10;
+        $validated['absen_close_min'] = $validated['absen_close_min'] ?? 30;
+        $validated['grace_late_min'] = $validated['grace_late_min'] ?? 15;
+        $validated['wajah_wajib'] = $request->has('wajah_wajib') ? 1 : 0;
+        $validated['status'] = 'aktif';
+
+        // Simple conflict check for same semester, day, time, and room
+        $existingJadwal = JadwalKuliah::where('semester_id', $validated['semester_id'])
+            ->where('hari', $validated['hari'])
+            ->where('id_ruangan', $validated['id_ruangan'])
+            ->where('status', 'aktif')
+            ->where(function($query) use ($validated) {
+                $query->whereBetween('jam_mulai', [$validated['jam_mulai'], $validated['jam_selesai']])
+                      ->orWhereBetween('jam_selesai', [$validated['jam_mulai'], $validated['jam_selesai']])
+                      ->orWhere(function($q) use ($validated) {
+                          $q->where('jam_mulai', '<=', $validated['jam_mulai'])
+                            ->where('jam_selesai', '>=', $validated['jam_selesai']);
+                      });
+            })
+            ->exists();
+
+        if ($existingJadwal) {
             return back()->withErrors([
-                'id_ruangan' => 'Ruangan sudah digunakan pada hari dan waktu yang sama.'
+                'id_ruangan' => 'Ruangan sudah digunakan pada hari dan waktu yang sama di semester ini.'
             ])->withInput();
         }
 
-        // Check lecturer conflict
-        if (JadwalKuliah::hasLecturerConflict(
-            $validated['id_dosen'],
-            $validated['hari'],
-            $validated['jam_mulai'],
-            $validated['jam_selesai'],
-            $validated['tanggal_mulai'],
-            $validated['tanggal_selesai']
-        )) {
-            return back()->withErrors([
-                'id_dosen' => 'Dosen sudah mengajar pada hari dan waktu yang sama.'
-            ])->withInput();
-        }
+        // Get semester data for tanggal_mulai and tanggal_selesai
+        $semester = \App\Models\Semester::findOrFail($validated['semester_id']);
 
         DB::beginTransaction();
         try {
@@ -144,22 +146,19 @@ class JadwalKuliahController extends Controller
                 'id_dosen' => $validated['id_dosen'],
                 'id_kelas' => $validated['id_kelas'],
                 'id_ruangan' => $validated['id_ruangan'],
+                'semester_id' => $validated['semester_id'],
                 'hari' => $validated['hari'],
                 'jam_mulai' => $validated['jam_mulai'],
                 'jam_selesai' => $validated['jam_selesai'],
-                'tanggal_mulai' => $validated['tanggal_mulai'],
-                'tanggal_selesai' => $validated['tanggal_selesai'],
-                'absen_open_min' => $validated['absen_open_min'] ?? 10,
-                'absen_close_min' => $validated['absen_close_min'] ?? 30,
-                'grace_late_min' => $validated['grace_late_min'] ?? 15,
-                'wajah_wajib' => $validated['wajah_wajib'] ?? false,
-                'status' => 'aktif',
+                'tanggal_mulai' => $semester->tanggal_mulai,
+                'tanggal_selesai' => $semester->tanggal_selesai,
+                'absen_open_min' => $validated['absen_open_min'],
+                'absen_close_min' => $validated['absen_close_min'],
+                'grace_late_min' => $validated['grace_late_min'],
+                'wajah_wajib' => $validated['wajah_wajib'],
+                'status' => $validated['status'],
                 'catatan' => $validated['catatan'] ?? null,
             ]);
-
-            // Generate pertemuan
-            $jumlahPertemuan = $validated['jumlah_pertemuan'] ?? 14;
-            $jadwal->generatePertemuan($jumlahPertemuan);
 
             LogHelper::create(auth()->id(), 'Jadwal Kuliah', 'Jadwal kuliah baru dibuat: ' . $jadwal->mataKuliah->nama_mk);
 

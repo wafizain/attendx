@@ -86,6 +86,28 @@
                     @enderror
                 </div>
 
+                <!-- Semester -->
+                <div class="col-md-6 mb-3">
+                    <label for="semester_id" class="form-label">Semester <span class="text-danger">*</span></label>
+                    <select name="semester_id" id="semester_id" class="form-select @error('semester_id') is-invalid @enderror" required>
+                        <option value="">Pilih Semester</option>
+                        @foreach($semesterList as $semester)
+                            <option value="{{ $semester->id }}" 
+                                    data-jumlah="{{ $semester->jumlah_pertemuan }}"
+                                    data-uts="{{ $semester->pertemuan_uts }}"
+                                    data-uas="{{ $semester->pertemuan_uas }}"
+                                    {{ old('semester_id') == $semester->id ? 'selected' : '' }}>
+                                {{ $semester->tahun_ajaran }} - Semester {{ $semester->semester == 1 ? 'Ganjil' : 'Genap' }}
+                                @if($semester->status == 'aktif') (Aktif) @endif
+                            </option>
+                        @endforeach
+                    </select>
+                    <small class="text-muted">Jumlah pertemuan akan otomatis terisi sesuai semester</small>
+                    @error('semester_id')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
                 <!-- Paralel -->
                 <div class="col-md-6 mb-3">
                     <label for="paralel" class="form-label">Kode Paralel (Opsional)</label>
@@ -158,38 +180,48 @@
             </div>
 
             <hr class="my-4">
-            <h6 class="mb-3">Periode Semester</h6>
+            <h6 class="mb-3">Konfigurasi Semester</h6>
 
             <div class="row">
-                <!-- Tanggal Mulai -->
-                <div class="col-md-6 mb-3">
-                    <label for="tanggal_mulai" class="form-label">Tanggal Mulai <span class="text-danger">*</span></label>
-                    <input type="date" name="tanggal_mulai" id="tanggal_mulai" class="form-control @error('tanggal_mulai') is-invalid @enderror" 
-                           value="{{ old('tanggal_mulai') }}" required>
-                    @error('tanggal_mulai')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <!-- Tanggal Selesai -->
-                <div class="col-md-6 mb-3">
-                    <label for="tanggal_selesai" class="form-label">Tanggal Selesai <span class="text-danger">*</span></label>
-                    <input type="date" name="tanggal_selesai" id="tanggal_selesai" class="form-control @error('tanggal_selesai') is-invalid @enderror" 
-                           value="{{ old('tanggal_selesai') }}" required>
-                    @error('tanggal_selesai')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <!-- Jumlah Pertemuan -->
+                <!-- Info Semester -->
                 <div class="col-md-12 mb-3">
-                    <label for="jumlah_pertemuan" class="form-label">Jumlah Pertemuan</label>
-                    <input type="number" name="jumlah_pertemuan" id="jumlah_pertemuan" class="form-control @error('jumlah_pertemuan') is-invalid @enderror" 
-                           value="{{ old('jumlah_pertemuan', 14) }}" min="1" max="20">
-                    <small class="text-muted">Default: 14 pertemuan. Sistem akan generate pertemuan otomatis sesuai hari yang dipilih.</small>
-                    @error('jumlah_pertemuan')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
+                    <div class="alert alert-info" id="semesterInfo" style="display: none;">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Informasi Semester yang Dipilih:</strong>
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-calendar-check fa-2x text-primary me-3"></i>
+                                    <div>
+                                        <small class="text-muted">Jumlah Pertemuan</small>
+                                        <h5 class="mb-0" id="infoJumlah">-</h5>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-clipboard-list fa-2x text-warning me-3"></i>
+                                    <div>
+                                        <small class="text-muted">UTS</small>
+                                        <h5 class="mb-0">Pertemuan ke-<span id="infoUTS">-</span></h5>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-graduation-cap fa-2x text-danger me-3"></i>
+                                    <div>
+                                        <small class="text-muted">UAS</small>
+                                        <h5 class="mb-0">Pertemuan ke-<span id="infoUAS">-</span></h5>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning" id="semesterWarning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Silakan pilih semester terlebih dahulu untuk melihat konfigurasi pertemuan.
+                    </div>
                 </div>
             </div>
 
@@ -267,6 +299,29 @@
 
 @push('scripts')
 <script>
+// Auto-fill semester info when semester is selected
+document.getElementById('semester_id').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    const semesterInfo = document.getElementById('semesterInfo');
+    const semesterWarning = document.getElementById('semesterWarning');
+    
+    if (this.value) {
+        const jumlah = selectedOption.getAttribute('data-jumlah');
+        const uts = selectedOption.getAttribute('data-uts');
+        const uas = selectedOption.getAttribute('data-uas');
+        
+        document.getElementById('infoJumlah').textContent = jumlah + ' pertemuan';
+        document.getElementById('infoUTS').textContent = uts || '-';
+        document.getElementById('infoUAS').textContent = uas || '-';
+        
+        semesterInfo.style.display = 'block';
+        semesterWarning.style.display = 'none';
+    } else {
+        semesterInfo.style.display = 'none';
+        semesterWarning.style.display = 'block';
+    }
+});
+
 // Auto-calculate jam_selesai based on jam_mulai + 2 hours (typical class duration)
 document.getElementById('jam_mulai').addEventListener('change', function() {
     const jamMulai = this.value;

@@ -81,9 +81,25 @@ class AuditController extends Controller
             $query->where('action', $request->action);
         }
 
-        // Filter by tanggal
-        if ($request->filled('tanggal')) {
-            $query->whereDate('created_at', $request->tanggal);
+        // Filter by date range
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Search filter
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('endpoint', 'like', "%{$search}%")
+                  ->orWhere('ip_address', 'like', "%{$search}%")
+                  ->orWhere('response_message', 'like', "%{$search}%")
+                  ->orWhereHas('device', function($q) use ($search) {
+                      $q->where('device_name', 'like', "%{$search}%");
+                  });
+            });
         }
 
         $logs = $query->paginate(50);

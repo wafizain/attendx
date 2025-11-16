@@ -57,15 +57,15 @@
             <table class="table table-sm table-borderless">
               <tr>
                 <th width="40%">Mata Kuliah</th>
-                <td><strong>{{ $kelas->mataKuliah->nama_mk }}</strong></td>
+                <td><strong>{{ $kelas->mataKuliah->nama_mk ?? 'Tidak Ada' }}</strong></td>
               </tr>
               <tr>
                 <th>Kelas</th>
-                <td>{{ $kelas->nama_kelas }}</td>
+                <td>{{ $kelas->nama_kelas ?? $kelas->nama ?? '-' }}</td>
               </tr>
               <tr>
                 <th>Dosen</th>
-                <td>{{ $kelas->dosen->name }}</td>
+                <td>{{ $kelas->dosen->name ?? 'Tidak Ada' }}</td>
               </tr>
             </table>
           </div>

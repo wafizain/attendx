@@ -145,7 +145,7 @@
                             {{ $mk->nama_mk }}
                             <br><small class="text-muted">{{ $mk->kurikulum }}</small>
                         </td>
-                        <td><small>{{ $mk->prodi->nama_prodi ?? '-' }}</small></td>
+                        <td><small>{{ $mk->prodi->nama ?? '-' }}</small></td>
                         <td class="text-center">{{ $mk->sks }}</td>
                         <td class="text-center">{{ $mk->semester ?? '-' }}</td>
                         <td>
